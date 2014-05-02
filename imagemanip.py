@@ -1,13 +1,13 @@
 from PIL import Image
  
  
-import Tkinter
+#import Tkinter
 
 
 backgroundColor = (0,)*3
-pixelSize = 9
+pixelSize = 4
  
-image = Image.open('photo.jpg')
+image = Image.open('/Users/timini/Documents/Code/PhotoBooth/testpics/in14_crop1.jpg')
 image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
 image = image.resize((image.size[0]*pixelSize, image.size[1]*pixelSize), Image.NEAREST)
 pixel = image.load()
@@ -18,9 +18,9 @@ for i in range(0,image.size[0],pixelSize):
       pixel[i+r,j] = backgroundColor
       pixel[i,j+r] = backgroundColor
  
-image.save('output.png')
+image.save('CropOutput.png')
 
-
+'''
 from Tkinter import Tk, Canvas, Frame, BOTH, NW
 import Image 
 import ImageTk
@@ -56,3 +56,5 @@ def main():
 
 if __name__ == '__main__':
     main()  
+    
+    '''
