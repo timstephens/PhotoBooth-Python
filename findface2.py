@@ -99,24 +99,7 @@ def faceCrop(imagePattern,boxScale=1):
         else:
             print 'No faces found:', img
 
-def test(imageFilePath):
-    pil_im=Image.open(imageFilePath)
-    cv_im=pil2cvGrey(pil_im)
-    # Select one of the haarcascade files:
-    #   haarcascade_frontalface_alt.xml  <-- Best one?
-    #   haarcascade_frontalface_alt2.xml
-    #   haarcascade_frontalface_alt_tree.xml
-    #   haarcascade_frontalface_default.xml
-    #   haarcascade_profileface.xml
-    faceCascade = cv.Load('haarcascade_frontalface_alt.xml')
-    face_im=DetectFace(cv_im,faceCascade, returnImage=True)
-    img=cv2pil(face_im)
-    img.show()
-    img.save('test.png')
 
-
-# Test the algorithm on an image
-#test('testPics/faces.jpg')
 
 # Crop all jpegs in a folder. Note: the code uses glob which follows unix shell rules.
 # Use the boxScale to scale the cropping area. 1=opencv box, 2=2x the width and height

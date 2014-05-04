@@ -30,12 +30,14 @@ previousT = 0
 ## captureImage grabs an image from the webcam that's connected and then applies some transforms to it from PIL
 
 def captureImage():
+	imageResolution = (90, 120) #TODO: Will probably need to change for installation!
 	backgroundColor = (0,)*3
 	pixelSize = 4
 	
-	cam = pygame.camera.Camera("/dev/video0",(picWidth,picHeight))
-	cam.start()
-	im= cam.get_image()
+	cam = picamera.PiCamera()
+	cam.rotation() = 90
+	cam.resolution = imageResolution
+	im= cam.
 	pygame.image.save(im, '/tmp/img101.png')
 	cam.stop()
 	#This is a horrible, horrible hack to get everything playing nice. It really ought to not be necessary to go via apair of temp files to use an image in two parts of the same script!
