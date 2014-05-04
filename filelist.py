@@ -2,70 +2,55 @@
 
 import glob
 import os
-import array
-import pygame
-from time import sleep
-from pygame.locals import *
 
 size = width, height = 320, 240
 picWidth = 128
 picHeight = 90
 
 black = 0,0,0
+numImagesInGrid = 16
 
-
-screen = pygame.display.set_mode(size)
-
+imageRoot = "/Users/timini/Documents/Code/PhotoBooth/"
 
 myFiles = []
 imageList = []
+myDirs = []
 
-
-def readFiles():
-	os.chdir("/Users/timini/Pictures/iPhone3G")
-	for file in glob.glob("*.JPG"):
-		print file
-		myFiles.append(file)
-	numberOfImages = len(myFiles)
-	print numberOfImages
-	print myFiles[(numberOfImages-4):numberOfImages]
-	for file in myFiles[(numberOfImages-4):numberOfImages]:
-		print file
-		image = pygame.image.load(file)
+def readDirs():
+	#Get a list of the image subdirectories that have already been created.
+	os.chdir(imageRoot)
+	for item in os.listdir(imageRoot):    
+		if os.path.isdir(os.path.join(imageRoot, 'imagesFolder/' ,item)):
+			print "Directory : ",item
+			if not item.startswith('.'):
+				myDirs.append(item)
+	return myDirs[]
+	
+def loadFiles(directory):
+	#Read in files from the directory containing images from the last run
+	
+	os.chdir(os.path.join(imageRoot, directory))
+	dirList = os.listdir('.')
+	
+	#Now lets build the list of images into tbe image list
+	for item in dirList[len(dirList)-16:len(dirList)]:
+		image=pygame.image.load(item)
 		imageList.append(image)
+	num = 1
+	while len(imageList) < numImagesInGrid:
+		#Need to load images from the special place...
+		filename = str(num) + '.jpg'
+		path = os.path.join('/Users/timini/Documents/Code/Photobooth/famousFaces/', filename)
+		image = pygame.image.load(path)
+		imageList.append(image)
+		if num > 16:
+			num = 0 #We're going to loop through these 16 until the list is full
 
-def updateDisplay():
-	for i in imageList:
-		screen.blit(i, (x, y))
-		x += (picWidth + 40)
-		if x > (width - picWidth):
-			x = 0
-			y += (picHeight + 40)
-		if y > (height- picHeight):
-			y=0
-			listFull = 1 #Next time we capure an image, delete the first in the list
-		#Need to handle the case where the list gets too many images in it and starts to overflow
-	pygame.display.flip()
+readDirs()
+print "Directory Listing\n===========================\n"
+print myDirs
 
-readFiles()
-x = y = 0
+lastDirectory = myDirs[len(myDirs)-1]
+print "Last Directory Name =" + lastDirectory
+readFiles(lastDirectory)
 
-while 1:
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			cb.cancel() 
-			pigpio.stop()
-			sys.exit()
-		if event.type == KEYDOWN:
-			if event.key == K_ESCAPE:
-				sys.exit()
-			if event.key == K_SPACE:
-				image = captureImage()
-				imageList.append(image)
-				if listFull > 0:
-					del imageList[0]
-				print "List Length = " + str(len(imageList))
-				updateDisplay()
-	screen.fill(black)
-	
-	

@@ -1,24 +1,31 @@
 from PIL import Image
- 
+import os
  
 #import Tkinter
 
 
 backgroundColor = (0,)*3
 pixelSize = 4
+imSize = (120,120)
+
+for num in range (1,17):
+	filename = str(num) + '.jpg'
+	path = os.path.join('/Users/timini/Documents/Code/Photobooth/famousFacesIn/', filename)
+	 
+	image = Image.open(path)
+	image = image.resize(imSize, Image.NEAREST) #Make all the images the same size (90x90)
+	image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
+	image = image.resize((image.size[0]*pixelSize, image.size[1]*pixelSize), Image.NEAREST)
+	pixel = image.load()
  
-image = Image.open('/Users/timini/Documents/Code/PhotoBooth/testpics/in14_crop1.jpg')
-image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
-image = image.resize((image.size[0]*pixelSize, image.size[1]*pixelSize), Image.NEAREST)
-pixel = image.load()
- 
-for i in range(0,image.size[0],pixelSize):
-  for j in range(0,image.size[1],pixelSize):
-    for r in range(pixelSize):
-      pixel[i+r,j] = backgroundColor
-      pixel[i,j+r] = backgroundColor
- 
-image.save('CropOutput.png')
+	for i in range(0,image.size[0],pixelSize):
+	  for j in range(0,image.size[1],pixelSize):
+		for r in range(pixelSize):
+		  pixel[i+r,j] = backgroundColor
+		  pixel[i,j+r] = backgroundColor
+ 	path = os.path.join('/Users/timini/Documents/Code/Photobooth/famousFaces/', filename)
+
+	image.save(path)
 
 '''
 from Tkinter import Tk, Canvas, Frame, BOTH, NW
