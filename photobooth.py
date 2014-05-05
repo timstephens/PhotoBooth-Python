@@ -27,26 +27,30 @@ import pigpio #For the IO interrupts
 
 # Global settings and initialisation.
 
-windowSize = width, height = 380, 300
+windowSize = width, height = 380, 300 #The size of the gallery display grid.
 black = 0,0,0
 white = 255,255,255
 grey = 220,220,220
+backgroundColor = black
+
+
+
+imageRoot = "/home/pi/mos/imageRoot" #location of the directory containing all the images.
+
+labelPos =(100,100) #position of the numbers when capturing the image.
+
+numImagesInGrid = 6 #This is a hack to make sure that the correct number of images are preloaded at the beginning. The 'normal' image display keeps track of whether the screen is full, but the preload doesn't. 
+
+cameraResolution = (90, 120) #TODO: Will probably need to change for installation!
+pixelSize = 4 #The size of the pixels in the pixellated images.
+picWidth = 120 #Width of the image in pixels.
+picPadding = 3 #Padding between images in the display grid.
+
+## Definitions
+
 global imageList
 imageList=[]
 myDirs = []
-picWidth = 120
-picPadding = 3
-
-labelPos =(100,100) #position of the numbers when capturing the image
-
-numImagesInGrid = 6
-
-cameraResolution = (90, 120) #TODO: Will probably need to change for installation!
-backgroundColor = (0,)*3
-pixelSize = 4
-
-## Definitions
-imageRoot = "/home/pi/mos/imageRoot" #location of the directory containing all the images
 scriptPath = os.getcwd() #This might be a way to break things if the script is started with an odd working directory
 #camera = picamera.PiCamera()
 screen = pygame.display.set_mode(windowSize, FULLSCREEN)
@@ -183,6 +187,9 @@ def imgCrop(image, cropBox, boxScale=1):
     #Making sure that the image is square and a constant size
 
 def faceCrop(pil_im,boxScale=1):
+	#This returns an array of PIL images cropped to contain each face.
+	
+	imageArray = []
 	# Select one of the haarcascade files:
 	#   haarcascade_frontalface_alt.xml  <-- Best one
 	#   haarcascade_frontalface_alt2.xml
@@ -198,20 +205,21 @@ def faceCrop(pil_im,boxScale=1):
 		#TODO: This will return the first face in the image, and not anything else.
 		# Will need an array or something of the various images to be able to return >1 face 
 		for face in faces:
-			croppedImage=imgCrop(pil_im, face[0],boxScale=boxScale)
+			croppedImage=imgCrop(pil_im, face,boxScale=boxScale)
+			imageArray.append(croppedImage)
 			#fname,ext=os.path.splitext(img)
 			#croppedImage.save(fname+'_crop'+str(n)+ext)
 			#n+=1
-			return croppedImage
+			#return croppedImage
 	else:
 		print 'No faces found:'
 		croppedImage = imgCrop(pil_im, [0,10,90,90], boxScale = 1)
-		return croppedImage
-
+		imageArray.append(croppedImage)
+		#return croppedImage
+	return imageArray
 
 def captureImage():
 	#Capture an image from the RPi camera, look for faces in it, and then pixellate and return the result.
-
 	stream = io.BytesIO() #So that we can directly import an OpenCV image for face detection
 	cam = picamera.PiCamera()
 	cam.rotation = 90 
@@ -237,25 +245,17 @@ def captureImage():
 	pygame.display.flip()
 	cam.capture(stream, format = 'jpeg')
 	cam.close()
-	#sleep(1) #TODO does this need to be in here?
 	
 	screen.fill(black)
 	pygame.display.flip()
-	
 	stream.seek(0)
 	image = Image.open(stream)
-	image = faceCrop(image, 1.5) #Do a loose crop around the face...
-
-	image = pixellate(image)
 	return image
 	
 	
 	pygame.event.clear() #Flush the event queue so that we don't capture multiple images if the button is mashed on by someone.
 
 def pixellate(image):
-	imageResolution = (90, 120) #TODO: Will probably need to change for installation!
-	backgroundColor = (0,)*3
-	pixelSize = 4
 	image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
 	image = image.resize((image.size[0]*pixelSize, image.size[1]*pixelSize), Image.NEAREST)
 	pixel = image.load()
@@ -275,16 +275,23 @@ def pixellate(image):
 	return image
 	
 def respondToEvent():
+	imageArray = []
 	global listFull #Yes, it's a hack
 	global fileNumber
 	capturedImage=captureImage()
-	capturedImage.save('/tmp/img102.png')
-	im=pygame.image.load('/tmp/img102.png') #The returned image from the capture is a PIL image. Read this into pygame
-	#This is an abominable hack. TODO: Find a way to read directly from stream rather than going via a file
-	imageList.append(im)
-	if listFull > 0:
-		del imageList[0]
-	print "List Length = " + str(len(imageList))
+	#Let's update the display so that it doesn't display black whilst the images are being processed.
+	listFull = updateDisplay(imageList)
+	#Carry out the face detection and pixellation here
+	imageArray = faceCrop(image, 1.5) #Do a loose crop around the face...
+	for image in imageArray
+		image = pixellate(image)
+		image.save('/tmp/img102.png')
+		im=pygame.image.load('/tmp/img102.png') #The returned image from the capture is a PIL image. Read this into pygame
+		#This is an abominable hack. TODO: Find a way to read directly from stream rather than going via a file
+		imageList.append(im)
+		if listFull > 0:
+			del imageList[0]
+		print "List Length = " + str(len(imageList))
 	listFull = updateDisplay(imageList)
 	filename = str(fileNumber) + '.jpg'
 	capturedImage.save(os.path.join(currentDir, filename))
