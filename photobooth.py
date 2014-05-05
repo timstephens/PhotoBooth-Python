@@ -171,7 +171,7 @@ def DetectFace(image, faceCascade, returnImage=False):
         
 def imgCrop(image, cropBox, boxScale=1):
     # Crop a PIL image with the provided box [x(left), y(upper), w(width), h(height)]
-
+    print "CropBox =" + str(cropBox)
     # Calculate scale factors
     # Should give something that's a bit wider/taller than the facial recognition box
     # The image is going to be square, so make that happen here. 
@@ -201,11 +201,12 @@ def faceCrop(pil_im,boxScale=1):
 	cv_im=pil2cvGrey(pil_im)
 	faces=DetectFace(cv_im,faceCascade)
 	if faces:
+		print str(len(faces)) + " faces found"
 		#n=1
 		#TODO: This will return the first face in the image, and not anything else.
 		# Will need an array or something of the various images to be able to return >1 face 
 		for face in faces:
-			croppedImage=imgCrop(pil_im, face,boxScale=boxScale)
+			croppedImage=imgCrop(pil_im, face[0],boxScale=boxScale)
 			imageArray.append(croppedImage)
 			#fname,ext=os.path.splitext(img)
 			#croppedImage.save(fname+'_crop'+str(n)+ext)
@@ -282,8 +283,8 @@ def respondToEvent():
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
 	listFull = updateDisplay(imageList)
 	#Carry out the face detection and pixellation here
-	imageArray = faceCrop(image, 1.5) #Do a loose crop around the face...
-	for image in imageArray
+	imageArray = faceCrop(capturedImage, 1.5) #Do a loose crop around the face...
+	for image in imageArray:
 		image = pixellate(image)
 		image.save('/tmp/img102.png')
 		im=pygame.image.load('/tmp/img102.png') #The returned image from the capture is a PIL image. Read this into pygame
