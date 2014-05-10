@@ -1,5 +1,8 @@
 #! /usr/bin/python2.7
 '''
+Tim Stephens http://www.tjstephens.com
+03May2014
+
 This is the photobooth application. 
 
 The app starts with a photo gallery that loads some images from a previously used storage directory, and then displays them in a nice grid.
@@ -23,24 +26,27 @@ import io #For capturing images to a stream
 import cv #for face detection
 import os
 import pigpio #For the IO interrupts
+from random import shuffle #for suffling the images loaded from disk
 
-# Global settings and initialisation.
+## Global settings and initialisation.
 
 windowSize = width, height = 1000, 800 #The size of the gallery display grid.
 black = 0,0,0
 white = 255,255,255
 grey = 220,220,220
 backgroundColor = black
-camBrightness = 60
+camBrightness = 50
 
 
 imageRoot = "/home/pi/mos/imageRoot" #location of the directory containing all the images.
 
 labelPos =(350,90) #position of the numbers when capturing the image.
+textPos = (90,600) #position of text that will appear during processing
+textContent = 'Preparing your portrait' #Explanation for whilst the system is doing face detection.
 
 numImagesInGrid = 12 #This is a hack to make sure that the correct number of images are preloaded at the beginning. The 'normal' image display keeps track of whether the screen is full, but the preload doesn't. 
 
-cameraResolution = (300, 350) #TODO: Will probably need to change for installation!
+cameraResolution = (350, 350) #TODO: Will probably need to change for installation!
 pixelSize = 6 #The size of the pixels in the pixellated images.
 picWidth = 240 #Width of the image in pixels.
 picPadding = 3 #Padding between images in the display grid.
@@ -58,7 +64,8 @@ pygame.mouse.set_visible(False) #Hide the mouse cursor
 BUTTON_PRESSED = USEREVENT+1
 global listFull
 listFull = 0 #Store whether the image list is full or not. If it's full, we'll stop it growing beyond the end of the screen.
-
+#loadpath = os.path.join(scriptPath, 'haarcascade_frontalface_alt.xml')
+#faceCascade = cv.Load(loadpath) 
 
 
 ## Functions
@@ -85,7 +92,6 @@ def loadFiles(directory):
 	try:
 		os.chdir(os.path.join(imageRoot, 'imagesFolder/', str(directory)))
 		dirList = os.listdir('.')
-	
 		#Now lets build the list of images into tbe image list
 		for item in dirList[len(dirList)-16:len(dirList)]:
 			image=pygame.image.load(item)
@@ -93,6 +99,8 @@ def loadFiles(directory):
 			imageList.append(image)
 	except IOError as e:
 		print "I/O error({0}): {1}".format(e.errno, e.strerror)
+	except OSError as e:
+		print 'No files, or perhaps no folder found'.format(e.errno, e.strerror)
 		
 	n = 1
 	while len(imageList) < numImagesInGrid:
@@ -104,11 +112,12 @@ def loadFiles(directory):
 		n+=1
 		if n > 16:
 			n = 1 #We're going to loop through these 16 until the list is full
+	shuffle(imageList) #Mix up the order a bit	
 
-		
-
-def updateDisplay(imageList):
+def updateDisplay(imageList, textLabel=False):
 	#Write the images to the screen buffer in a grid with the correct spacing and then show the result
+	screen.fill(black) # Make sure that any text or old images showing on the screen are hidden before writing new ones.
+
 	x=y=0
 	listFull = 0 #How we track whether the screen buffer is full
 	for i in imageList:
@@ -121,6 +130,10 @@ def updateDisplay(imageList):
 		if y > (height- picWidth):
 			y=0
 			listFull = 1 #Next time we capure an image, we'll delete the first in the list
+	if textLabel:
+		myfont = pygame.font.Font(None, 90)
+		label = myfont.render(textContent, 1, grey)
+		screen.blit(label, textPos)
 	pygame.display.flip() #Display the grid on-screen
 	pygame.event.clear() #Flush the event queue so that we don't capture multiple images if the button is mashed on by someone.
 	return listFull
@@ -143,7 +156,7 @@ def DetectFace(image, faceCascade, returnImage=False):
     # modified from: http://www.lucaamore.com/?p=638
 
     #variables    
-    min_size = (20,20)
+    min_size = (10,10)
     haar_scale = 1.1
     min_neighbors = 3
     haar_flags = 0
@@ -156,7 +169,6 @@ def DetectFace(image, faceCascade, returnImage=False):
             image, faceCascade, cv.CreateMemStorage(0),
             haar_scale, min_neighbors, haar_flags, min_size
         )
-
     # If faces are found
     if faces and returnImage:
         for ((x, y, w, h), n) in faces:
@@ -170,20 +182,19 @@ def DetectFace(image, faceCascade, returnImage=False):
     else:
         return faces
         
-def imgCrop(image, cropBox, boxScale=1):
+def imgCrop(image, cropBox, boxScale):
     # Crop a PIL image with the provided box [x(left), y(upper), w(width), h(height)]
-    print "CropBox =" + str(cropBox)
     # Calculate scale factors
     # Should give something that's a bit wider/taller than the facial recognition box
     # The image is going to be square, so make that happen here. 
     delta=int(max(cropBox[2]*(boxScale-1),0))
-    # yDelta=max(cropBox[3]*(boxScale-1),0)
     # Convert cv box to PIL box [left, upper, right, lower]
-    # PIL_box=[cropBox[0]-xDelta, cropBox[1]-yDelta, cropBox[0]+cropBox[2]+xDelta, cropBox[1]+cropBox[3]+yDelta]
     # Return a square image...
     #TODO: Can probably be cleverer here about how this is calculated to prevent multiple resize operations.
     PIL_box=[cropBox[0]-delta, cropBox[1]-delta, cropBox[0]+cropBox[2]+delta, cropBox[1]+cropBox[2]+delta]
-    image.crop(PIL_box)
+    print PIL_box
+    print " and delta is " + str(delta)
+    image=image.crop(PIL_box)
     return image.resize((picWidth, picWidth), Image.NEAREST) 
     #Making sure that the image is square and a constant size
 
@@ -198,12 +209,13 @@ def faceCrop(pil_im,boxScale):
 	#   haarcascade_frontalface_default.xml
 	#   haarcascade_profileface.xml
 	loadpath = os.path.join(scriptPath, 'haarcascade_frontalface_alt.xml')
-	faceCascade = cv.Load(loadpath)
+	faceCascade = cv.Load(loadpath) 
 	cv_im=pil2cvGrey(pil_im)
 	faces=DetectFace(cv_im,faceCascade)
 	if faces:
 		print str(len(faces)) + " faces found"
 		for face in faces:
+			print face
 			croppedImage=imgCrop(pil_im, face[0],boxScale)
 			imageArray.append(croppedImage)
 	else:
@@ -247,10 +259,8 @@ def captureImage():
 	pygame.display.flip()
 	stream.seek(0)
 	image = Image.open(stream)
-	return image
-	
-	
 	pygame.event.clear() #Flush the event queue so that we don't capture multiple images if the button is mashed on by someone.
+	return image
 
 def pixellate(image):
 	image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
@@ -268,9 +278,9 @@ def respondToEvent():
 	global listFull #Yes, it's a hack
 	global fileNumber
 	capturedImage=captureImage()
-	capturedImage.save('/tmp/ncrop.png')
+	capturedImage.save('/tmp/uncrop.png')
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
-	listFull = updateDisplay(imageList)
+	listFull = updateDisplay(imageList, textContent)
 	#Carry out the face detection and pixellation here
 	imageArray = faceCrop(capturedImage, 1.1) #Do a loose crop around the face...
 	for image in imageArray:
@@ -285,10 +295,7 @@ def respondToEvent():
 		if listFull > 0:
 			del imageList[0]
 		print "List Length = " + str(len(imageList))
-	listFull = updateDisplay(imageList)
-	
-
-	
+	listFull = updateDisplay(imageList, False)
 	pygame.event.clear()
 	
 # ########################################################################
