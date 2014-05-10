@@ -1,11 +1,11 @@
 #! /usr/bin/python2.7
 '''
-This is a stab at the actual photobooth application. 
+This is the photobooth application. 
 
-The app will start with a photo gallery that loads some images from the storage directory, and then displays them in a nice grid (this already exists in the mos.py script)
-Next, it'll wait for input from the pushbutton - use the callback function to throw an event rather than calling the function directly. This way, the button presses can be queued and then flushed if there are multiple ones.
+The app starts with a photo gallery that loads some images from a previously used storage directory, and then displays them in a nice grid.
+Next, it'll wait for input from the pushbutton - using a callback function to throw an event rather than calling the function directly. This way, the button presses can be queued and then flushed if there are lots.
 Activate the camera in preview mode, and then overlay a countdown timer
-Turn off preview mode, 
+Turn off preview mode 
 flash the screen white
 Grab an image
 Pixellate and display the image large
@@ -23,7 +23,6 @@ import io #For capturing images to a stream
 import cv #for face detection
 import os
 import pigpio #For the IO interrupts
-# import numpy as np #for opencv face detection
 
 # Global settings and initialisation.
 
@@ -109,8 +108,9 @@ def loadFiles(directory):
 		
 
 def updateDisplay(imageList):
+	#Write the images to the screen buffer in a grid with the correct spacing and then show the result
 	x=y=0
-	listFull = 0
+	listFull = 0 #How we track whether the screen buffer is full
 	for i in imageList:
 		#print i
 		screen.blit(i, (x, y))
@@ -120,11 +120,9 @@ def updateDisplay(imageList):
 			y += (picWidth + picPadding)
 		if y > (height- picWidth):
 			y=0
-			listFull = 1 #Next time we capure an image, delete the first in the list
-		#Need to handle the case where the list gets too many images in it and starts to overflow
-	pygame.display.flip()
+			listFull = 1 #Next time we capure an image, we'll delete the first in the list
+	pygame.display.flip() #Display the grid on-screen
 	pygame.event.clear() #Flush the event queue so that we don't capture multiple images if the button is mashed on by someone.
-
 	return listFull
 	
 def pil2cvGrey(pil_im):
@@ -189,7 +187,7 @@ def imgCrop(image, cropBox, boxScale=1):
     return image.resize((picWidth, picWidth), Image.NEAREST) 
     #Making sure that the image is square and a constant size
 
-def faceCrop(pil_im,boxScale=1):
+def faceCrop(pil_im,boxScale):
 	#This returns an array of PIL images cropped to contain each face.
 	
 	imageArray = []
@@ -205,19 +203,13 @@ def faceCrop(pil_im,boxScale=1):
 	faces=DetectFace(cv_im,faceCascade)
 	if faces:
 		print str(len(faces)) + " faces found"
-		#n=1
-		#TODO: This will return the first face in the image, and not anything else.
-		# Will need an array or something of the various images to be able to return >1 face 
 		for face in faces:
-			croppedImage=imgCrop(pil_im, face[0],boxScale=boxScale)
+			croppedImage=imgCrop(pil_im, face[0],boxScale)
 			imageArray.append(croppedImage)
-			#fname,ext=os.path.splitext(img)
-			#croppedImage.save(fname+'_crop'+str(n)+ext)
-			#n+=1
-			#return croppedImage
 	else:
 		print 'No faces found:'
-		croppedImage = imgCrop(pil_im, [0,10,90,90], boxScale = 1)
+		#TODO: Make sure that the returned image is central in the camera image, and the same size!!
+		croppedImage = imgCrop(pil_im, [int((cameraResolution[0]-picWidth)/2),int((cameraResolution[1]-picWidth)/2),picWidth,picWidth], boxScale)
 		imageArray.append(croppedImage)
 		#return croppedImage
 	return imageArray
@@ -264,19 +256,11 @@ def pixellate(image):
 	image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
 	image = image.resize((image.size[0]*pixelSize, image.size[1]*pixelSize), Image.NEAREST)
 	pixel = image.load()
-	
-	#TODO: May need to enhance the brightness of the image in here, but leave it for now
-	#enh = ImageEnhance.Brightness(image)
-	#enh.enhance(1.3) 
 	for i in range(0,image.size[0],pixelSize):
 	  for j in range(0,image.size[1],pixelSize):
 	    for r in range(pixelSize):
 	      pixel[i+r,j] = backgroundColor
 	      pixel[i,j+r] = backgroundColor
-	 
-	#image.save('/tmp/img102.png')
-	#image.save('/home/pi/mos/img101.png')
-	#im = pygame.image.load('/tmp/img102.png')
 	return image
 	
 def respondToEvent():
@@ -295,7 +279,7 @@ def respondToEvent():
 		filename = str(fileNumber) + '.jpg'
 		fileNumber +=1
 		image.save(os.path.join(currentDir, filename))
-		im=pygame.image.load('/tmp/img102.png') #The returned image from the capture is a PIL image. Read this into pygame
+		im=pygame.image.load('/tmp/img102.png') #The returned image from the capture is a PIL image. Read this into pygame via the filesystem since using streams directly results in some sort of garbled image.
 		#This is an abominable hack. TODO: Find a way to read directly from stream rather than going via a file
 		imageList.append(im)
 		if listFull > 0:
@@ -321,7 +305,7 @@ cb = pigpio.callback(24, pigpio.FALLING_EDGE, cbf)
 myDirs = readDirs()
 print myDirs
 if myDirs:
-	lastDirectory = len(myDirs)-1 #List is zero-referenced
+	lastDirectory = len(myDirs)-1 #List is zero-referenced, first directory begins with 1
 else:
 	lastDirectory = 1
 

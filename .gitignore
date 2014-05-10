@@ -1,4 +1,6 @@
 /testpics*
+/untitled\ folder/*
 detected.jpg
 /imagesFolder/*
+!/imagesFolder/famousFaces
 faces_orig.jpg
