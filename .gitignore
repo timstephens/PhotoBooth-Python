@@ -1,3 +1,4 @@
-*.jpg
-*.png
 /testpics*
+detected.jpg
+/imagesFolder/*
+faces_orig.jpg
