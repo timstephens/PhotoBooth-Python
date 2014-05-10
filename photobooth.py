@@ -1,4 +1,4 @@
-#! /opt/local/bin/python2.7
+#! /usr/bin/python2.7
 '''
 This is a stab at the actual photobooth application. 
 
@@ -27,23 +27,23 @@ import pigpio #For the IO interrupts
 
 # Global settings and initialisation.
 
-windowSize = width, height = 380, 300 #The size of the gallery display grid.
+windowSize = width, height = 1000, 800 #The size of the gallery display grid.
 black = 0,0,0
 white = 255,255,255
 grey = 220,220,220
 backgroundColor = black
-
+camBrightness = 60
 
 
 imageRoot = "/home/pi/mos/imageRoot" #location of the directory containing all the images.
 
-labelPos =(100,100) #position of the numbers when capturing the image.
+labelPos =(350,90) #position of the numbers when capturing the image.
 
-numImagesInGrid = 6 #This is a hack to make sure that the correct number of images are preloaded at the beginning. The 'normal' image display keeps track of whether the screen is full, but the preload doesn't. 
+numImagesInGrid = 12 #This is a hack to make sure that the correct number of images are preloaded at the beginning. The 'normal' image display keeps track of whether the screen is full, but the preload doesn't. 
 
-cameraResolution = (90, 120) #TODO: Will probably need to change for installation!
-pixelSize = 4 #The size of the pixels in the pixellated images.
-picWidth = 120 #Width of the image in pixels.
+cameraResolution = (300, 350) #TODO: Will probably need to change for installation!
+pixelSize = 6 #The size of the pixels in the pixellated images.
+picWidth = 240 #Width of the image in pixels.
 picPadding = 3 #Padding between images in the display grid.
 
 ## Definitions
@@ -82,6 +82,7 @@ def readDirs():
 	
 def loadFiles(directory):
 	#Read in files from the directory containing images from the last run
+	print "Input directory: " + str(directory)
 	try:
 		os.chdir(os.path.join(imageRoot, 'imagesFolder/', str(directory)))
 		dirList = os.listdir('.')
@@ -103,7 +104,7 @@ def loadFiles(directory):
 		imageList.append(image)
 		n+=1
 		if n > 16:
-			n = 0 #We're going to loop through these 16 until the list is full
+			n = 1 #We're going to loop through these 16 until the list is full
 
 		
 
@@ -122,6 +123,8 @@ def updateDisplay(imageList):
 			listFull = 1 #Next time we capure an image, delete the first in the list
 		#Need to handle the case where the list gets too many images in it and starts to overflow
 	pygame.display.flip()
+	pygame.event.clear() #Flush the event queue so that we don't capture multiple images if the button is mashed on by someone.
+
 	return listFull
 	
 def pil2cvGrey(pil_im):
@@ -142,7 +145,7 @@ def DetectFace(image, faceCascade, returnImage=False):
     # modified from: http://www.lucaamore.com/?p=638
 
     #variables    
-    min_size = (15,15)
+    min_size = (20,20)
     haar_scale = 1.1
     min_neighbors = 3
     haar_flags = 0
@@ -226,12 +229,13 @@ def captureImage():
 	cam.rotation = 90 
 	cam.hflip = True
 	cam.resolution = cameraResolution
+	cam.brightness = camBrightness
 	#Display numbers on screen, real big
-	myfont = pygame.font.Font(None, 150)
+	myfont = pygame.font.Font(None, 1000)
 	cam.preview_alpha = 128 #Opacity of the preview image.
 	cam.start_preview()
 	# render text
-	for x in range (3,0,-1):
+	for x in range (5,0,-1):
 		screen.fill(black)
 		#print "We're at %i", x
 		label = myfont.render(str(x), 1, white)
@@ -280,13 +284,17 @@ def respondToEvent():
 	global listFull #Yes, it's a hack
 	global fileNumber
 	capturedImage=captureImage()
+	capturedImage.save('/tmp/ncrop.png')
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
 	listFull = updateDisplay(imageList)
 	#Carry out the face detection and pixellation here
-	imageArray = faceCrop(capturedImage, 1.5) #Do a loose crop around the face...
+	imageArray = faceCrop(capturedImage, 1.1) #Do a loose crop around the face...
 	for image in imageArray:
 		image = pixellate(image)
 		image.save('/tmp/img102.png')
+		filename = str(fileNumber) + '.jpg'
+		fileNumber +=1
+		image.save(os.path.join(currentDir, filename))
 		im=pygame.image.load('/tmp/img102.png') #The returned image from the capture is a PIL image. Read this into pygame
 		#This is an abominable hack. TODO: Find a way to read directly from stream rather than going via a file
 		imageList.append(im)
@@ -294,9 +302,9 @@ def respondToEvent():
 			del imageList[0]
 		print "List Length = " + str(len(imageList))
 	listFull = updateDisplay(imageList)
-	filename = str(fileNumber) + '.jpg'
-	capturedImage.save(os.path.join(currentDir, filename))
-	fileNumber +=1
+	
+
+	
 	pygame.event.clear()
 	
 # ########################################################################
@@ -311,8 +319,9 @@ pigpio.set_pull_up_down(24, pigpio.PUD_UP)
 cb = pigpio.callback(24, pigpio.FALLING_EDGE, cbf)
 
 myDirs = readDirs()
+print myDirs
 if myDirs:
-	lastDirectory = myDirs[len(myDirs)-1] #List is zero-referenced
+	lastDirectory = len(myDirs)-1 #List is zero-referenced
 else:
 	lastDirectory = 1
 
