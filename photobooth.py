@@ -56,7 +56,7 @@ picPadding = 3 #Padding between images in the display grid.
 global imageList
 imageList=[]
 myDirs = []
-scriptPath = os.getcwd() #This might be a way to break things if the script is started with an odd working directory
+scriptPath = "/home/pi/mos" #os.getcwd() #This might be a way to break things if the script is started with an odd working directory
 #camera = picamera.PiCamera()
 screen = pygame.display.set_mode(windowSize, FULLSCREEN)
 pygame.init()
@@ -282,7 +282,7 @@ def respondToEvent():
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
 	listFull = updateDisplay(imageList, textContent)
 	#Carry out the face detection and pixellation here
-	imageArray = faceCrop(capturedImage, 1.1) #Do a loose crop around the face...
+	imageArray = faceCrop(capturedImage, 1.3) #Do a loose crop around the face...
 	for image in imageArray:
 		image = pixellate(image)
 		image.save('/tmp/img102.png')

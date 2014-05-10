@@ -5,12 +5,12 @@ import os
 
 
 backgroundColor = (0,)*3
-pixelSize = 4
-imSize = (120,120)
+pixelSize = 6
+imSize = (240,240)
 
 for num in range (1,17):
 	filename = str(num) + '.jpg'
-	path = os.path.join('/Users/timini/Documents/Code/Photobooth/famousFacesIn/', filename)
+	path = os.path.join('/home/pi/mos/famousFacesIn/', filename)
 	 
 	image = Image.open(path)
 	image = image.resize(imSize, Image.NEAREST) #Make all the images the same size (90x90)
@@ -23,7 +23,7 @@ for num in range (1,17):
 		for r in range(pixelSize):
 		  pixel[i+r,j] = backgroundColor
 		  pixel[i,j+r] = backgroundColor
- 	path = os.path.join('/Users/timini/Documents/Code/Photobooth/famousFaces/', filename)
+ 	path = os.path.join('/home/pi/mos/imageRoot/famousFaces/', filename)
 
 	image.save(path)
 
