@@ -58,22 +58,28 @@ imageList=[]
 myDirs = []
 scriptPath = "/home/pi/mos" #os.getcwd() #This might be a way to break things if the script is started with an odd working directory
 #camera = picamera.PiCamera()
-screen = pygame.display.set_mode(windowSize, FULLSCREEN)
+screen = pygame.display.set_mode(windowSize) #, FULLSCREEN)
 pygame.init()
 pygame.mouse.set_visible(False) #Hide the mouse cursor
 BUTTON_PRESSED = USEREVENT+1
 global listFull
 listFull = 0 #Store whether the image list is full or not. If it's full, we'll stop it growing beyond the end of the screen.
-#loadpath = os.path.join(scriptPath, 'haarcascade_frontalface_alt.xml')
-#faceCascade = cv.Load(loadpath) 
+
 
 
 ## Functions
+
 def cbf(g, L, t):
-	#Generate an event for every button press. This will queue up a load if the button's pressed repeatedly whilst capture is underway
-	#Flush the event queue at the end of the image capture sequence. 
-	pygame.event.post(pygame.event.Event(BUTTON_PRESSED))
-	print "Event Posted"
+	#Generate an event for every button press. NB: This will queue up a load if the button's pressed repeatedly whilst capture is underway
+	#Flush the event queue at the end of the image capture sequence.
+	pygame.event.clear() #Flush the queue here to kill of switch bounce.
+	try: 
+		pygame.event.post(pygame.event.Event(BUTTON_PRESSED))
+		#print "Event Posted"
+	except:
+		#This is only likely to error if the event queue is full, so clear it here too
+		pygame.event.clear() 
+		print "Event queue cleared"
 
 def readDirs():
 	#Get a list of the image subdirectories that have already been created.
@@ -116,6 +122,7 @@ def loadFiles(directory):
 
 def updateDisplay(imageList, textLabel=False):
 	#Write the images to the screen buffer in a grid with the correct spacing and then show the result
+	# If there's text in the textLabel parameter, draw that over the image gallery
 	screen.fill(black) # Make sure that any text or old images showing on the screen are hidden before writing new ones.
 
 	x=y=0
@@ -196,7 +203,6 @@ def imgCrop(image, cropBox, boxScale):
     print " and delta is " + str(delta)
     image=image.crop(PIL_box)
     return image.resize((picWidth, picWidth), Image.NEAREST) 
-    #Making sure that the image is square and a constant size
 
 def faceCrop(pil_im,boxScale):
 	#This returns an array of PIL images cropped to contain each face.
@@ -223,7 +229,6 @@ def faceCrop(pil_im,boxScale):
 		#TODO: Make sure that the returned image is central in the camera image, and the same size!!
 		croppedImage = imgCrop(pil_im, [int((cameraResolution[0]-picWidth)/2),int((cameraResolution[1]-picWidth)/2),picWidth,picWidth], boxScale)
 		imageArray.append(croppedImage)
-		#return croppedImage
 	return imageArray
 
 def captureImage():
@@ -238,10 +243,9 @@ def captureImage():
 	myfont = pygame.font.Font(None, 1000)
 	cam.preview_alpha = 128 #Opacity of the preview image.
 	cam.start_preview()
-	# render text
+	# render a countdown, with the screen flashing white for illumination when the photo is taken
 	for x in range (5,0,-1):
 		screen.fill(black)
-		#print "We're at %i", x
 		label = myfont.render(str(x), 1, white)
 		screen.blit(label, labelPos)
 		pygame.display.flip()
@@ -272,7 +276,7 @@ def pixellate(image):
 	      pixel[i+r,j] = backgroundColor
 	      pixel[i,j+r] = backgroundColor
 	return image
-	
+
 def respondToEvent():
 	imageArray = []
 	global listFull #Yes, it's a hack
@@ -296,8 +300,8 @@ def respondToEvent():
 			del imageList[0]
 		print "List Length = " + str(len(imageList))
 	listFull = updateDisplay(imageList, False)
-	pygame.event.clear()
-	
+	pygame.event.clear(BUTTON_PRESSED)
+
 # ########################################################################
 #
 # Main Program
@@ -327,6 +331,7 @@ if not os.path.isdir(currentDir):
 
 fileNumber = 1
 
+pygame.event.clear() #Make sure there's nothing waiting for us.
 while 1:
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:
@@ -345,6 +350,7 @@ while 1:
 			if event.key == K_SPACE:
 				print "Space Pressed"
 				respondToEvent()
+	pygame.event.clear()
 	sleep(0.05)
 
 	
