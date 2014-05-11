@@ -58,7 +58,7 @@ imageList=[]
 myDirs = []
 scriptPath = "/home/pi/mos" #os.getcwd() #This might be a way to break things if the script is started with an odd working directory
 #camera = picamera.PiCamera()
-screen = pygame.display.set_mode(windowSize) #, FULLSCREEN)
+screen = pygame.display.set_mode(windowSize, FULLSCREEN)
 pygame.init()
 pygame.mouse.set_visible(False) #Hide the mouse cursor
 BUTTON_PRESSED = USEREVENT+1
