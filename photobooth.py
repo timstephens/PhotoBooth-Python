@@ -38,7 +38,7 @@ backgroundColor = black
 camBrightness = 50
 
 
-imageRoot = "/home/pi/mos/imageRoot" #location of the directory containing all the images.
+imageRoot = "/mnt/storage" #location of the directory containing all the images.
 
 labelPos =(350,90) #position of the numbers when capturing the image.
 textPos = (90,600) #position of text that will appear during processing
