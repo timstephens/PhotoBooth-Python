@@ -198,7 +198,8 @@ def imgCrop(image, cropBox, boxScale):
     # Convert cv box to PIL box [left, upper, right, lower]
     # Return a square image...
     #TODO: Can probably be cleverer here about how this is calculated to prevent multiple resize operations.
-    PIL_box=[cropBox[0]-delta, cropBox[1]-delta, cropBox[0]+cropBox[2]+delta, cropBox[1]+cropBox[2]+delta]
+    #Make sure that the edges of the crop box never extend beyond the edge of the image
+    PIL_box=[max(cropBox[0]-delta,0), max(cropBox[1]-delta,0), min(cropBox[0]+cropBox[2]+delta, cameraResolution[0]), min(cropBox[1]+cropBox[2]+delta, cameraResolution[1])]
     print PIL_box
     print " and delta is " + str(delta)
     image=image.crop(PIL_box)
@@ -282,7 +283,7 @@ def respondToEvent():
 	global listFull #Yes, it's a hack
 	global fileNumber
 	capturedImage=captureImage()
-	capturedImage.save('/tmp/uncrop.png')
+	#capturedImage.save('/tmp/uncrop.png')
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
 	listFull = updateDisplay(imageList, textContent)
 	#Carry out the face detection and pixellation here
