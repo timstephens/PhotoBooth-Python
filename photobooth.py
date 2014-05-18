@@ -108,7 +108,7 @@ def loadFiles(directory):
 	except OSError as e:
 		print 'No files, or perhaps no folder found'.format(e.errno, e.strerror)
 	except:
-		print 'There was an error loading the image from this location:' + str(directory)
+		print 'There was an error loading the image from this location:' + str(directory)	
 		print 'I am going to show just the famous faces this time'
 		
 	n = 1
@@ -286,7 +286,6 @@ def respondToEvent():
 	global listFull #Yes, it's a hack
 	global fileNumber
 	capturedImage=captureImage()
-	#capturedImage.save('/tmp/uncrop.png')
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
 	listFull = updateDisplay(imageList, textContent)
 	#Carry out the face detection and pixellation here
