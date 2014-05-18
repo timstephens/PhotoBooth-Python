@@ -107,6 +107,9 @@ def loadFiles(directory):
 		print "I/O error({0}): {1}".format(e.errno, e.strerror)
 	except OSError as e:
 		print 'No files, or perhaps no folder found'.format(e.errno, e.strerror)
+	except:
+		print 'There was an error loading the image from this location:' + str(directory)
+		print 'I am going to show just the famous faces this time'
 		
 	n = 1
 	while len(imageList) < numImagesInGrid:
