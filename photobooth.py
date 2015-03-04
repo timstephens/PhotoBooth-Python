@@ -26,7 +26,9 @@ import io #For capturing images to a stream
 import cv #for face detection
 import os
 import pigpio #For the IO interrupts
-from random import shuffle #for suffling the images loaded from disk
+import random #for suffling the images loaded from disk
+from bisect import bisect 
+import string
 
 ## Global settings and initialisation.
 
@@ -38,7 +40,7 @@ backgroundColor = black
 camBrightness = 50
 
 
-imageRoot = "/mnt/storage" #location of the directory containing all the images.
+imageRoot = "/home/pi/photobooth" #location of the directory containing all the images.
 
 labelPos =(350,90) #position of the numbers when capturing the image.
 textPos = (90,600) #position of text that will appear during processing
@@ -56,9 +58,9 @@ picPadding = 3 #Padding between images in the display grid.
 global imageList
 imageList=[]
 myDirs = []
-scriptPath = "/home/pi/mos" #os.getcwd() #This might be a way to break things if the script is started with an odd working directory
+scriptPath = "/home/pi/asciibooth" #os.getcwd() #This might be a way to break things if the script is started with an odd working directory
 #camera = picamera.PiCamera()
-screen = pygame.display.set_mode(windowSize, FULLSCREEN)
+screen = pygame.display.set_mode(windowSize) #, FULLSCREEN)
 pygame.init()
 pygame.mouse.set_visible(False) #Hide the mouse cursor
 BUTTON_PRESSED = USEREVENT+1
@@ -81,65 +83,21 @@ def cbf(g, L, t):
 		pygame.event.clear() 
 		print "Event queue cleared"
 
-def readDirs():
-	#Get a list of the image subdirectories that have already been created.
-	mypath = os.path.join(imageRoot, 'imagesFolder/')
-	os.chdir(mypath)
-	for item in os.listdir(mypath):    
-		if os.path.isdir(os.path.join(mypath ,item)):
-			#print "Directory : ",item
-			if not item.startswith('.'):
-				myDirs.append(item)
-	return myDirs
-	
-def loadFiles(directory):
-	#Read in files from the directory containing images from the last run
-	print "Input directory: " + str(directory)
-	try:
-		os.chdir(os.path.join(imageRoot, 'imagesFolder/', str(directory)))
-		dirList = os.listdir('.')
-		#Now lets build the list of images into tbe image list
-		for item in dirList[len(dirList)-16:len(dirList)]:
-			image=pygame.image.load(item)
-			print "Loaded " + item
-			imageList.append(image)
-	except IOError as e:
-		print "I/O error({0}): {1}".format(e.errno, e.strerror)
-	except OSError as e:
-		print 'No files, or perhaps no folder found'.format(e.errno, e.strerror)
-	except:
-		print 'There was an error loading the image from this location:' + str(directory)	
-		print 'I am going to show just the famous faces this time'
-		
-	n = 1
-	while len(imageList) < numImagesInGrid:
-		#Need to load images from the special place...
-		filename = str(n) + '.jpg'
-		path = os.path.join(imageRoot, 'famousFaces/', filename)
-		image = pygame.image.load(path)
-		imageList.append(image)
-		n+=1
-		if n > 16:
-			n = 1 #We're going to loop through these 16 until the list is full
-	shuffle(imageList) #Mix up the order a bit	
 
-def updateDisplay(imageList, textLabel=False):
+
+
+def updateDisplay(string, textLabel=False):
 	#Write the images to the screen buffer in a grid with the correct spacing and then show the result
 	# If there's text in the textLabel parameter, draw that over the image gallery
 	screen.fill(black) # Make sure that any text or old images showing on the screen are hidden before writing new ones.
 
 	x=y=0
-	listFull = 0 #How we track whether the screen buffer is full
-	for i in imageList:
-		#print i
-		screen.blit(i, (x, y))
-		x += (picWidth + picPadding)
-		if x > (width - picWidth):
-			x = 0
-			y += (picWidth + picPadding)
-		if y > (height- picWidth):
-			y=0
-			listFull = 1 #Next time we capure an image, we'll delete the first in the list
+	myfont = pygame.font.SysFont("Monospace", 7)
+	for i in string.splitlines():
+		label = myfont.render(i, 1, grey)
+		screen.blit(label, (x,y))
+		y+=8
+	
 	if textLabel:
 		myfont = pygame.font.Font(None, 90)
 		label = myfont.render(textContent, 1, grey)
@@ -270,16 +228,55 @@ def captureImage():
 	pygame.event.clear() #Flush the event queue so that we don't capture multiple images if the button is mashed on by someone.
 	return image
 
-def pixellate(image):
-	image = image.resize((image.size[0]/pixelSize, image.size[1]/pixelSize), Image.NEAREST)
-	image = image.resize((image.size[0]*pixelSize, image.size[1]*pixelSize), Image.NEAREST)
-	pixel = image.load()
-	for i in range(0,image.size[0],pixelSize):
-	  for j in range(0,image.size[1],pixelSize):
-	    for r in range(pixelSize):
-	      pixel[i+r,j] = backgroundColor
-	      pixel[i,j+r] = backgroundColor
-	return image
+
+def toAscii(im):
+	# using the bisect class to put luminosity values
+	# in various ranges.
+	# these are the luminosity cut-off points for each
+	# of the 7 tonal levels. At the moment, these are 7 bands
+	# of even width, but they could be changed to boost
+	# contrast or change gamma, for example.
+	'''
+	ASCII Art maker
+	Creates an ascii art image from an arbitrary image
+	Created on 7 Sep 2009
+	 
+	@author: Steven Kay
+	'''
+
+	greyscale = [
+	            " ",
+	            " ",
+	            ".,-",
+	            "_ivc=!/|\\~",
+	            "gjez2]/(YL)t[+T7Vf",
+	            "mdK4ZGbNDXY5P*Q",
+	            "W8KMA",
+	            "#%$"
+	            ]
+	 
+	zonebounds=[36,72,108,144,180,216,252]
+	 
+	# open image and resize
+	# experiment with aspect ratios according to font
+	 
+	
+	im=im.resize((160,100),Image.BILINEAR)
+	im=im.convert("L") # convert to mono
+	 
+	# now, work our way over the pixels
+	# build up str
+	 
+	str =""
+	for y in range(0,im.size[1]):
+	    for x in range(0,im.size[0]):
+	        lum=255-im.getpixel((x,y))
+	        row=bisect(zonebounds,lum)
+	        possibles=greyscale[row]
+	        str=str+possibles[random.randint(0,len(possibles)-1)]
+	    str=str+"\n"
+	 
+	return str
 
 def respondToEvent():
 	imageArray = []
@@ -287,11 +284,15 @@ def respondToEvent():
 	global fileNumber
 	capturedImage=captureImage()
 	#Let's update the display so that it doesn't display black whilst the images are being processed.
-	listFull = updateDisplay(imageList, textContent)
+	updateDisplay(" ", textContent) #Hack to make the test appear.
 	#Carry out the face detection and pixellation here
 	imageArray = faceCrop(capturedImage, 1.3) #Do a loose crop around the face...
 	for image in imageArray:
-		image = pixellate(image)
+		#image = pixellate(image)
+		asciiImage = toAscii(image)
+		print asciiImage
+		
+		'''
 		image.save('/tmp/img102.png')
 		filename = str(fileNumber) + '.jpg'
 		fileNumber +=1
@@ -302,7 +303,10 @@ def respondToEvent():
 		if listFull > 0:
 			del imageList[0]
 		print "List Length = " + str(len(imageList))
-	listFull = updateDisplay(imageList, False)
+		listFull = updateDisplay(imageList, False)
+		'''
+		updateDisplay(asciiImage)
+	
 	pygame.event.clear(BUTTON_PRESSED)
 
 # ########################################################################
@@ -316,21 +320,6 @@ pigpio.start()
 pigpio.set_pull_up_down(24, pigpio.PUD_UP)
 cb = pigpio.callback(24, pigpio.FALLING_EDGE, cbf)
 
-myDirs = readDirs()
-print myDirs
-if myDirs:
-	lastDirectory = len(myDirs)-1 #List is zero-referenced, first directory begins with 1
-else:
-	lastDirectory = 1
-
-loadFiles(lastDirectory) # This should populate the list of images with something...
-listFull = updateDisplay(imageList) #Make sure that the faces are displayed onscreen
-print "Length of myDirs is " + str(len(myDirs))
-#create a directory for this run's worth of files
-currentDir = os.path.join(imageRoot, 'imagesFolder/', str(len(myDirs)+1))
-print currentDir
-if not os.path.isdir(currentDir):
-	os.mkdir(currentDir)
 
 fileNumber = 1
 
